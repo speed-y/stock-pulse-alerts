@@ -7,7 +7,7 @@
 //   GEMINI_MODEL                  → model ID (default: gemini-2.0-flash)
 //   MY_EMAIL                      → your personal Gmail (tracks your replies)
 //   BCC_EMAILS                    → comma-separated (optional)
-//   SENDER_EMAIL                  → your-sender@gmail.com
+//   SENDER_EMAIL                  → Gmail address that sends the alerts (can be same as MY_EMAIL)
 //   TICKERS                       → comma-sep Yahoo symbols (default: GOLDCASE.NS)
 //                                    e.g. GOLDCASE.NS,SILVERBEES.NS
 //   INITIAL_HOLDINGS_<NAME>       → units held before using this script

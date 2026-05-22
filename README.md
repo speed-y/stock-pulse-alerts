@@ -53,7 +53,7 @@ Pre-configured with tailored Gemini search hints. Any Yahoo Finance `.NS` / `.BO
 | `GEMINI_API_KEY` | Get from [aistudio.google.com](https://aistudio.google.com) |
 | `GEMINI_MODEL` | `gemini-2.0-flash` *(or newer — must support Google Search grounding)* |
 | `MY_EMAIL` | Your personal Gmail address |
-| `SENDER_EMAIL` | The Gmail alias that sends alerts (e.g. `your-sender@gmail.com`) |
+| `SENDER_EMAIL` | Gmail address that sends the alerts — can be the same as `MY_EMAIL`, or a dedicated alias |
 | `BCC_EMAILS` | Comma-separated CC addresses *(optional)* |
 | `TICKERS` | Comma-separated Yahoo symbols, e.g. `GOLDCASE.NS,SILVERBEES.NS` |
 | `INITIAL_HOLDINGS_GOLDCASE` | Units you already held before using this script *(optional)* |
