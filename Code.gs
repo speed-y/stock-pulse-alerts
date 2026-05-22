@@ -44,6 +44,7 @@ const TICKER_META = {
 };
 
 function tickerMeta(symbol) {
+  if (!symbol) throw new Error('No ticker symbol — run runAlerts(), not sendTickerAlert() directly.');
   if (TICKER_META[symbol]) return TICKER_META[symbol];
   const name = symbol.replace(/\.(NS|BO)$/i, '').toUpperCase();
   return { name, description: `${name} Indian ETF`, searchHint: `${name} India ETF price sentiment` };
@@ -58,7 +59,9 @@ const E = {
   warn  : String.fromCodePoint(0x26A0),
 };
 
-// ── Entry point — attach as a time-driven trigger (4–5 PM IST) ─
+// ── Entry point ────────────────────────────────────────────────
+// Run this function manually or attach it as a time-driven trigger.
+// Do NOT run sendTickerAlert() directly — it requires a symbol argument.
 function runAlerts() {
   if (!isTradingDay()) { Logger.log('Non-trading day — skipping.'); return; }
 
