@@ -4,7 +4,7 @@
 // ================================================================
 // SETUP — Apps Script > Project Settings > Script Properties:
 //   GEMINI_API_KEY                → aistudio.google.com
-//   GEMINI_MODEL                  → model ID (default: gemini-2.0-flash)
+//   GEMINI_MODEL                  → model ID (default: gemini-2.5-flash)
 //   MY_EMAIL                      → your personal Gmail (tracks your replies)
 //   BCC_EMAILS                    → comma-separated (optional)
 //   SENDER_EMAIL                  → Gmail address that sends the alerts (can be same as MY_EMAIL)
@@ -111,7 +111,7 @@ function isTradingDay() {
 }
 
 function sendTickerAlert(symbol, props) {
-  const GEMINI_MODEL = props.getProperty('GEMINI_MODEL') || 'gemini-2.0-flash';
+  const GEMINI_MODEL = props.getProperty('GEMINI_MODEL') || 'gemini-2.5-flash';
   const GEMINI       = props.getProperty('GEMINI_API_KEY');
   const MY_EMAIL     = props.getProperty('MY_EMAIL');
   const BCC_EMAILS   = props.getProperty('BCC_EMAILS') || '';
