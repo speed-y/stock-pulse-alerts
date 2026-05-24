@@ -5,6 +5,7 @@
 // SETUP — Apps Script > Project Settings > Script Properties:
 //   GEMINI_API_KEY                → aistudio.google.com
 //   GEMINI_MODEL                  → model ID (default: gemini-3.5-flash)
+//                                    gemini-3.5-flash uses thinkingLevel (low/medium/high); temperature is ignored
 //   MY_EMAIL                      → your personal Gmail (tracks your replies)
 //   BCC_EMAILS                    → comma-separated (optional)
 //   SENDER_EMAIL                  → Gmail address that sends the alerts (can be same as MY_EMAIL)
@@ -176,7 +177,7 @@ function sendTickerAlert(symbol, props) {
             `REASON: <2-3 sentences>`
           }] }],
           tools           : [{ google_search: {} }],
-          generationConfig: { temperature: 0 },
+          generationConfig: { thinkingConfig: { thinkingLevel: 'low' } },
         }),
         muteHttpExceptions: true,
       }
