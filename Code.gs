@@ -1,10 +1,13 @@
 // ================================================================
 // Stock Pulse — NSE ETF Daily Alert System
 // Uses: Yahoo Finance + Gemini Flash (Search-grounded) + Gmail
+//       Falls back to Groq (llama-3.3-70b) when Gemini is unavailable.
 // ================================================================
 // SETUP — Apps Script > Project Settings > Script Properties:
 //   GEMINI_API_KEY                → aistudio.google.com
 //   GEMINI_MODEL                  → model ID (default: gemini-3.5-flash)
+//   GROQ_API_KEY                  → console.groq.com  (fallback when Gemini fails)
+//   GROQ_MODEL                    → model ID (default: llama-3.3-70b-versatile)
 //   MY_EMAIL                      → your personal Gmail (tracks your replies)
 //   BCC_EMAILS                    → comma-separated (optional)
 //   SENDER_EMAIL                  → Gmail address that sends the alerts (can be same as MY_EMAIL)
@@ -154,39 +157,90 @@ function sendTickerAlert(symbol, props) {
     return `${d}: ₹${closes[i] != null ? closes[i].toFixed(2) : 'N/A'}`;
   }).join('\n');
 
-  // ── 3. Gemini — sentiment analysis ───────────────────────────
-  let aiText;
-  try {
-    const resp = UrlFetchApp.fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI}`,
-      {
-        method      : 'post',
-        contentType : 'application/json',
-        payload     : JSON.stringify({
-          contents : [{ parts: [{ text:
-            `You are a financial analyst specializing in Indian markets.\n` +
-            `Analyze ${meta.description}.\n\n` +
-            `Current price : ₹${currentPrice}\n` +
-            `Previous close: ₹${prevClose}\n` +
-            `30-day history:\n${priceHistory}\n\n` +
-            `Use Google Search to find latest news on: ${meta.searchHint}.\n` +
-            `Consider price trend, macro factors, and market sentiment.\n` +
-            `Reply ONLY in this exact format (no extra text):\n` +
-            `SENTIMENT: Strongly Bullish|Bullish|Neutral|Bearish|Strongly Bearish\n` +
-            `REASON: <2-3 sentences>`
-          }] }],
-          tools           : [{ google_search: {} }],
-          generationConfig: { temperature: 0 },
-        }),
-        muteHttpExceptions: true,
-      }
-    );
-    const data = JSON.parse(resp.getContentText());
-    Logger.log(`[${symbol}] Gemini: ` + resp.getContentText());
-    if (!data.candidates?.[0]) throw new Error(resp.getContentText());
-    // Grounding may split the response across multiple parts — join them all
-    aiText = data.candidates[0].content.parts.map(p => p.text || '').join('').trim();
-  } catch (e) { sendError('Gemini error: ' + e.message); return; }
+  // ── 3. AI sentiment analysis (Gemini → Groq fallback) ───────────
+  const aiPromptBase =
+    `You are a financial analyst specializing in Indian markets.\n` +
+    `Analyze ${meta.description}.\n\n` +
+    `Current price : ₹${currentPrice}\n` +
+    `Previous close: ₹${prevClose}\n` +
+    `30-day history:\n${priceHistory}\n\n` +
+    `Consider price trend, macro factors, and market sentiment.\n` +
+    `Reply ONLY in this exact format (no extra text):\n` +
+    `SENTIMENT: Strongly Bullish|Bullish|Neutral|Bearish|Strongly Bearish\n` +
+    `REASON: <2-3 sentences>`;
+
+  let aiText      = null;
+  let geminiError = null;
+
+  // ── 3a. Try Gemini (with Google Search grounding) ─────────────
+  if (GEMINI) {
+    try {
+      const resp = UrlFetchApp.fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI}`,
+        {
+          method      : 'post',
+          contentType : 'application/json',
+          payload     : JSON.stringify({
+            contents : [{ parts: [{ text:
+              aiPromptBase +
+              `\n\nUse Google Search to find latest news on: ${meta.searchHint}.`
+            }] }],
+            tools           : [{ google_search: {} }],
+            generationConfig: { temperature: 0 },
+          }),
+          muteHttpExceptions: true,
+        }
+      );
+      const data = JSON.parse(resp.getContentText());
+      Logger.log(`[${symbol}] Gemini: ` + resp.getContentText());
+      if (!data.candidates?.[0]) throw new Error(resp.getContentText());
+      // Grounding may split the response across multiple parts — join them all
+      aiText = data.candidates[0].content.parts.map(p => p.text || '').join('').trim();
+    } catch (e) {
+      geminiError = e.message;
+      Logger.log(`[${symbol}] Gemini failed, trying Groq: ${e.message}`);
+    }
+  }
+
+  // ── 3b. Groq fallback ─────────────────────────────────────────
+  if (!aiText) {
+    const GROQ_KEY   = props.getProperty('GROQ_API_KEY');
+    const GROQ_MODEL = props.getProperty('GROQ_MODEL') || 'llama-3.3-70b-versatile';
+    if (!GROQ_KEY) {
+      sendError(
+        `Gemini unavailable${geminiError ? ': ' + geminiError : ''} and no GROQ_API_KEY is set.\n` +
+        `Add GROQ_API_KEY to Apps Script > Project Settings > Script Properties.`
+      );
+      return;
+    }
+    try {
+      const resp = UrlFetchApp.fetch(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          method      : 'post',
+          contentType : 'application/json',
+          headers     : { Authorization: 'Bearer ' + GROQ_KEY },
+          payload     : JSON.stringify({
+            model      : GROQ_MODEL,
+            messages   : [{ role: 'user', content: aiPromptBase }],
+            temperature: 0,
+          }),
+          muteHttpExceptions: true,
+        }
+      );
+      const data = JSON.parse(resp.getContentText());
+      Logger.log(`[${symbol}] Groq: ` + resp.getContentText());
+      if (!data.choices?.[0]) throw new Error(resp.getContentText());
+      aiText = data.choices[0].message.content.trim();
+    } catch (e) {
+      sendError(
+        `Both Gemini and Groq failed.\n` +
+        `Gemini: ${geminiError || 'no key'}\n` +
+        `Groq: ${e.message}`
+      );
+      return;
+    }
+  }
 
   const getVal    = key => { const m = aiText.match(new RegExp(`${key}:\\s*(.+)`)); return m ? m[1].trim() : 'N/A'; };
   const sentiment = getVal('SENTIMENT');
