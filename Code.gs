@@ -176,7 +176,7 @@ function sendTickerAlert(symbol, props) {
   if (GEMINI) {
     try {
       const resp = UrlFetchApp.fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI}`,
+        `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI}`,
         {
           method      : 'post',
           contentType : 'application/json',
